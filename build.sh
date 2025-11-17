@@ -63,6 +63,13 @@ fi
 # Copy Info.plist
 cp Info.plist "$CONTENTS_DIR/"
 
+# Copy App Icon if available
+if [ -f "AppIcon.icns" ]; then
+    cp AppIcon.icns "$RESOURCES_DIR/AppIcon.icns"
+else
+    echo "Warning: AppIcon.icns not found; application will use default icon."
+fi
+
 # Create PkgInfo
 echo "APPL????" > "$CONTENTS_DIR/PkgInfo"
 

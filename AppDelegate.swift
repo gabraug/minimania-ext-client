@@ -26,6 +26,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         setupWindow()
         setupWebView()
+        setupApplicationIcon()
         setupServices()
         setupManagers()
         setupModals()
@@ -150,6 +151,15 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
         autoFarmingManager.plantButton = autoFarmingModal.autoPlantButton
     }
     
+    private func setupApplicationIcon() {
+        if let iconPath = Bundle.main.path(forResource: "AppIcon", ofType: "icns"),
+           let iconImage = NSImage(contentsOfFile: iconPath) {
+            NSApp.applicationIconImage = iconImage
+        } else {
+            print("Warning: AppIcon.icns not found in bundle resources.")
+        }
+    }
+    
     private func loadInitialPage() {
         if let url = URL(string: "https://minimania.app/") {
             let request = URLRequest(url: url)
@@ -199,6 +209,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     
     @objc func openMessageModal() {
         messageModal.show(with: autoMessageManager.config.text)
+    }
+    
+    private func presentMissingAutoMessageAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Mensagem não configurada"
+        alert.informativeText = "Por favor, configure uma mensagem antes de ativar o Auto Message."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Configurar")
+        alert.addButton(withTitle: "Cancelar")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            openMessageModal()
+        }
     }
     
     @objc func openAutoReplyModal() {
