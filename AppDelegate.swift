@@ -95,6 +95,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
             self?.presentMissingAutoMessageAlert()
         }
         autoReplyManager = AutoReplyManager(jsService: jsInjectionService)
+        autoReplyManager.onMissingConfiguration = { [weak self] in
+            self?.presentMissingAutoReplyAlert()
+        }
         autoFarmingManager = AutoFarmingManager(jsService: jsInjectionService)
         mentionHighlighterManager = MentionHighlighterManager(jsService: jsInjectionService, config: userConfig)
     }
@@ -213,11 +216,11 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     
     private func presentMissingAutoMessageAlert() {
         let alert = NSAlert()
-        alert.messageText = "Mensagem não configurada"
-        alert.informativeText = "Por favor, configure uma mensagem antes de ativar o Auto Message."
+        alert.messageText = "Message not configured"
+        alert.informativeText = "Please configure a message before enabling Auto Message."
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Configurar")
-        alert.addButton(withTitle: "Cancelar")
+        alert.addButton(withTitle: "Configure")
+        alert.addButton(withTitle: "Cancel")
         
         let response = alert.runModal()
         if response == .alertFirstButtonReturn {
@@ -239,9 +242,6 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     
     @objc func toggleAutoReply() {
         autoReplyManager.toggle()
-        if autoReplyManager.config.isEnabled && (autoReplyManager.config.keyword.isEmpty || autoReplyManager.config.message.isEmpty) {
-            openAutoReplyModal()
-        }
     }
     
     @objc func intervalFieldChanged() {
@@ -264,6 +264,20 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
         } else {
             headerView.antiAfkButton.title = "Anti-AFK [OFF]"
             headerView.antiAfkButton.contentTintColor = .systemGray
+        }
+    }
+    
+    private func presentMissingAutoReplyAlert() {
+        let alert = NSAlert()
+        alert.messageText = "Auto Reply not configured"
+        alert.informativeText = "Please configure a keyword and reply message before enabling Auto Reply."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Configure")
+        alert.addButton(withTitle: "Cancel")
+        
+        let response = alert.runModal()
+        if response == .alertFirstButtonReturn {
+            openAutoReplyModal()
         }
     }
     
