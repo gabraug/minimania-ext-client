@@ -90,6 +90,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
         antiAfkManager = AntiAfkManager(jsService: jsInjectionService)
         zoomManager = ZoomManager(jsService: jsInjectionService)
         autoMessageManager = AutoMessageManager(jsService: jsInjectionService)
+        autoMessageManager.onMissingMessage = { [weak self] in
+            self?.presentMissingAutoMessageAlert()
+        }
         autoReplyManager = AutoReplyManager(jsService: jsInjectionService)
         autoFarmingManager = AutoFarmingManager(jsService: jsInjectionService)
         mentionHighlighterManager = MentionHighlighterManager(jsService: jsInjectionService, config: userConfig)

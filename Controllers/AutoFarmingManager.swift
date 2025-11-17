@@ -143,22 +143,28 @@ class AutoFarmingManager {
     }
     
     func updateHarvestButtonState() {
-        if config.isAutoHarvestEnabled {
-            harvestButton?.title = "Auto Harvest [ON]"
-            harvestButton?.contentTintColor = .systemGreen
-        } else {
-            harvestButton?.title = "Auto Harvest [OFF]"
-            harvestButton?.contentTintColor = .systemGray
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.config.isAutoHarvestEnabled {
+                self.harvestButton?.title = "Auto Harvest [ON]"
+                self.harvestButton?.contentTintColor = .systemGreen
+            } else {
+                self.harvestButton?.title = "Auto Harvest [OFF]"
+                self.harvestButton?.contentTintColor = .systemGray
+            }
         }
     }
     
     func updatePlantButtonState() {
-        if config.isAutoPlantEnabled {
-            plantButton?.title = "Auto Plant [ON]"
-            plantButton?.contentTintColor = .systemGreen
-        } else {
-            plantButton?.title = "Auto Plant [OFF]"
-            plantButton?.contentTintColor = .systemGray
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.config.isAutoPlantEnabled {
+                self.plantButton?.title = "Auto Plant [ON]"
+                self.plantButton?.contentTintColor = .systemGreen
+            } else {
+                self.plantButton?.title = "Auto Plant [OFF]"
+                self.plantButton?.contentTintColor = .systemGray
+            }
         }
     }
 }

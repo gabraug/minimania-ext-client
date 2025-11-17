@@ -4,6 +4,7 @@ import WebKit
 class AutoReplyManager {
     private let jsService: JavaScriptInjectionService
     var config: AutoReplyConfig
+    var onMissingConfiguration: (() -> Void)?
     
     weak var button: NSButton?
     
@@ -16,9 +17,11 @@ class AutoReplyManager {
         config.isEnabled.toggle()
         
         if config.isEnabled {
-            if config.keyword.isEmpty || config.message.isEmpty {
+            if config.keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                config.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 config.isEnabled = false
                 updateButtonState()
+                onMissingConfiguration?()
                 return
             }
             
@@ -40,12 +43,15 @@ class AutoReplyManager {
     }
     
     func updateButtonState() {
-        if config.isEnabled {
-            button?.title = "Reply [ON]"
-            button?.contentTintColor = .systemGreen
-        } else {
-            button?.title = "Reply [OFF]"
-            button?.contentTintColor = .systemGray
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.config.isEnabled {
+                self.button?.title = "Reply [ON]"
+                self.button?.contentTintColor = .systemGreen
+            } else {
+                self.button?.title = "Reply [OFF]"
+                self.button?.contentTintColor = .systemGray
+            }
         }
     }
 }

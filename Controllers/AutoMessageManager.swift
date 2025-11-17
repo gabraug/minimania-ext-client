@@ -5,6 +5,7 @@ class AutoMessageManager {
     private var timer: Timer?
     private let jsService: JavaScriptInjectionService
     var config: AutoMessageConfig
+    var onMissingMessage: (() -> Void)?
     
     weak var button: NSButton?
     
@@ -20,6 +21,7 @@ class AutoMessageManager {
             if config.text.isEmpty {
                 config.isEnabled = false
                 updateButtonState()
+                onMissingMessage?()
                 return
             }
             
@@ -63,12 +65,15 @@ class AutoMessageManager {
     }
     
     func updateButtonState() {
-        if config.isEnabled {
-            button?.title = "Auto Message [ON]"
-            button?.contentTintColor = .systemGreen
-        } else {
-            button?.title = "Auto Message [OFF]"
-            button?.contentTintColor = .systemGray
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.config.isEnabled {
+                self.button?.title = "Auto Message [ON]"
+                self.button?.contentTintColor = .systemGreen
+            } else {
+                self.button?.title = "Auto Message [OFF]"
+                self.button?.contentTintColor = .systemGray
+            }
         }
     }
     

@@ -87,11 +87,12 @@ class HeaderView: NSView {
         autoMessageIntervalField.target = target
         autoMessageIntervalField.action = #selector((target as? HeaderViewDelegate)?.intervalFieldChanged)
         
-        autoMessageButton = NSButton(title: "Auto Message", target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAutoMessage))
+        autoMessageButton = NSButton(title: "Auto Message [OFF]", target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAutoMessage))
         autoMessageButton.bezelStyle = .rounded
         autoMessageButton.controlSize = .small
         autoMessageButton.toolTip = "Enable/disable automatic message sending"
         autoMessageButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        autoMessageButton.contentTintColor = .systemGray
         
         let autoReplyConfigButton = NSButton(title: "Auto-Reply", target: target, action: #selector((target as? HeaderViewDelegate)?.openAutoReplyModal))
         autoReplyConfigButton.bezelStyle = .rounded
