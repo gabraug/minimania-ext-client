@@ -45,12 +45,15 @@ class AutoReplyManager {
     func updateButtonState() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            let iconName = self.config.isEnabled ? "arrowshape.turn.up.left.fill" : "arrowshape.turn.up.left"
+            guard let icon = NSImage(systemSymbolName: iconName, accessibilityDescription: "Auto-Reply") else { return }
+            let whiteIcon = icon.tinted(with: .white)
+            whiteIcon.isTemplate = false
+            self.button?.image = whiteIcon
             if self.config.isEnabled {
-                self.button?.title = "Reply [ON]"
                 self.button?.contentTintColor = .systemGreen
             } else {
-                self.button?.title = "Reply [OFF]"
-                self.button?.contentTintColor = .systemGray
+                self.button?.contentTintColor = .white
             }
         }
     }
