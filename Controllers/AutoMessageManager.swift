@@ -67,12 +67,15 @@ class AutoMessageManager {
     func updateButtonState() {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
+            let iconName = self.config.isEnabled ? "message.fill" : "message"
+            guard let icon = NSImage(systemSymbolName: iconName, accessibilityDescription: "Auto Message") else { return }
+            let whiteIcon = icon.tinted(with: .white)
+            whiteIcon.isTemplate = false
+            self.button?.image = whiteIcon
             if self.config.isEnabled {
-                self.button?.title = "Auto Message [ON]"
                 self.button?.contentTintColor = .systemGreen
             } else {
-                self.button?.title = "Auto Message [OFF]"
-                self.button?.contentTintColor = .systemGray
+                self.button?.contentTintColor = .white
             }
         }
     }

@@ -152,22 +152,77 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     private func setupModals() {
         messageModal = MessageModal()
         messageModal.parentWindow = window
-        messageModal.onSave = { [weak self] text in
-            self?.autoMessageManager.config.text = text
+        messageModal.create(parentWindow: window)
+        messageModal.onSave = { [weak self] text, interval, isEnabled in
+            guard let self = self else { return }
+            self.autoMessageManager.config.text = text
+            self.autoMessageManager.config.interval = interval
+            let wasEnabled = self.autoMessageManager.config.isEnabled
+            self.autoMessageManager.config.isEnabled = isEnabled
+            
+            if isEnabled && !wasEnabled {
+                self.autoMessageManager.toggle()
+            } else if !isEnabled && wasEnabled {
+                self.autoMessageManager.toggle()
+            } else if isEnabled {
+                self.autoMessageManager.startTimer()
+            }
+            
+            self.autoMessageManager.updateButtonState()
+            
+            if isEnabled != wasEnabled {
+                let alert = NSAlert()
+                if isEnabled {
+                    alert.messageText = "Auto Message Enabled"
+                    alert.informativeText = "Automatic message sending has been enabled successfully."
+                } else {
+                    alert.messageText = "Auto Message Disabled"
+                    alert.informativeText = "Automatic message sending has been disabled."
+                }
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
         }
         
         autoReplyModal = AutoReplyModal()
         autoReplyModal.parentWindow = window
-        autoReplyModal.onSave = { [weak self] keyword, message in
-            self?.autoReplyManager.config.keyword = keyword
-            self?.autoReplyManager.config.message = message
-            if self?.autoReplyManager.config.isEnabled == true {
-                self?.autoReplyManager.injectObserver()
+        autoReplyModal.create(parentWindow: window)
+        autoReplyModal.onSave = { [weak self] keyword, message, isEnabled in
+            guard let self = self else { return }
+            self.autoReplyManager.config.keyword = keyword
+            self.autoReplyManager.config.message = message
+            let wasEnabled = self.autoReplyManager.config.isEnabled
+            self.autoReplyManager.config.isEnabled = isEnabled
+            
+            if isEnabled && !wasEnabled {
+                self.autoReplyManager.toggle()
+            } else if !isEnabled && wasEnabled {
+                self.autoReplyManager.toggle()
+            } else if isEnabled {
+                self.autoReplyManager.injectObserver()
+            }
+            
+            self.autoReplyManager.updateButtonState()
+            
+            if isEnabled != wasEnabled {
+                let alert = NSAlert()
+                if isEnabled {
+                    alert.messageText = "Auto-Reply Enabled"
+                    alert.informativeText = "Automatic reply system has been enabled successfully."
+                } else {
+                    alert.messageText = "Auto-Reply Disabled"
+                    alert.informativeText = "Automatic reply system has been disabled."
+                }
+                alert.alertStyle = .informational
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
             }
         }
         
         autoFarmingModal = AutoFarmingModal()
         autoFarmingModal.parentWindow = window
+        autoFarmingModal.create(parentWindow: window)
         autoFarmingModal.onToggleHarvest = { [weak self] in
             self?.autoFarmingManager.toggleAutoHarvest()
         }
