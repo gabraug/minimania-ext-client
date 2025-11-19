@@ -725,5 +725,246 @@ struct JavaScriptScripts {
         })();
         """
     }
+    
+    static func chatHistoryObserverScript() -> String {
+        return """
+        (function() {
+            if (window.__chatHistoryObserver) {
+                window.__chatHistoryObserver.disconnect();
+                window.__chatHistoryObserver = null;
+            }
+            
+            if (window.__chatHistoryInputObserver) {
+                window.__chatHistoryInputObserver.disconnect();
+                window.__chatHistoryInputObserver = null;
+            }
+            
+            if (window.__chatHistoryProcessedMessages) {
+                window.__chatHistoryProcessedMessages.clear();
+            } else {
+                window.__chatHistoryProcessedMessages = new Set();
+            }
+            
+            let pendingMessage = null;
+            let lastInputValue = '';
+            
+            function extractMessageText(container) {
+                const textElement = container.querySelector('.ChatPanel_text__gPmys');
+                if (textElement) {
+                    return textElement.textContent || textElement.innerText || '';
+                }
+                const nameElement = container.querySelector('.ChatPanel_name__SoYeq');
+                if (nameElement) {
+                    const textSpan = nameElement.querySelector('.ChatPanel_text__gPmys');
+                    if (textSpan) {
+                        return textSpan.textContent || textSpan.innerText || '';
+                    }
+                }
+                return container.textContent || container.innerText || '';
+            }
+            
+            function getMessageId(container) {
+                const existingId = container.getAttribute('data-chat-history-id');
+                if (existingId) {
+                    return existingId;
+                }
+                
+                const messageText = extractMessageText(container);
+                const timestamp = container.getAttribute('data-timestamp') || Date.now().toString();
+                const id = timestamp + '_' + (messageText.substring(0, 20) || '').replace(/[^a-zA-Z0-9]/g, '');
+                container.setAttribute('data-chat-history-id', id);
+                return id;
+            }
+            
+            function captureMessage(text) {
+                if (!text || text.trim().length === 0) {
+                    console.log('Chat history: Empty message, skipping');
+                    return;
+                }
+                
+                const trimmedText = text.trim();
+                const messageId = 'msg_' + Date.now() + '_' + trimmedText.substring(0, 10).replace(/[^a-zA-Z0-9]/g, '');
+                
+                if (window.__chatHistoryProcessedMessages.has(messageId)) {
+                    console.log('Chat history: Message already processed:', trimmedText);
+                    return;
+                }
+                
+                window.__chatHistoryProcessedMessages.add(messageId);
+                
+                console.log('Chat history: Sending message to Swift:', trimmedText);
+                
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.chatMessage) {
+                    try {
+                        window.webkit.messageHandlers.chatMessage.postMessage({
+                            text: trimmedText,
+                            timestamp: new Date().toISOString()
+                        });
+                        console.log('Chat history: Message sent successfully');
+                    } catch(e) {
+                        console.error('Chat history: Error sending message:', e);
+                    }
+                } else {
+                    console.error('Chat history: Message handler not available');
+                }
+            }
+            
+            function setupInputObserver() {
+                const chatInput = document.querySelector('input[name="chatInput"]') || 
+                                 document.querySelector('.ChatPanel_textInput__HK2XH') ||
+                                 document.querySelector('input[type="text"][placeholder*="message" i]') ||
+                                 document.querySelector('input[type="text"][placeholder*="mensagem" i]');
+                
+                if (!chatInput) {
+                    return;
+                }
+                
+                if (chatInput.dataset.chatHistoryListener === 'true') {
+                    return;
+                }
+                
+                chatInput.dataset.chatHistoryListener = 'true';
+                
+                const handleKeyDown = function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey && chatInput.value && chatInput.value.trim().length > 0) {
+                        const messageToSend = chatInput.value.trim();
+                        pendingMessage = messageToSend;
+                        lastInputValue = chatInput.value;
+                        console.log('Chat history: Message pending (Enter pressed):', pendingMessage);
+                        
+                        setTimeout(function() {
+                            checkForSentMessage();
+                        }, 300);
+                    }
+                };
+                
+                chatInput.addEventListener('keydown', handleKeyDown, true);
+                
+                chatInput.addEventListener('input', function(e) {
+                    lastInputValue = chatInput.value;
+                });
+                
+                console.log('Chat history: Input observer attached to chat input');
+            }
+            
+            function checkForSentMessage() {
+                if (!pendingMessage) {
+                    return;
+                }
+                
+                const trimmedPending = pendingMessage.trim();
+                if (!trimmedPending) {
+                    pendingMessage = null;
+                    return;
+                }
+                
+                const messageContainers = document.querySelectorAll('.ChatPanel_messageContainer__vcNLb');
+                const recentContainers = Array.from(messageContainers).slice(-10);
+                
+                for (let container of recentContainers) {
+                    const messageText = extractMessageText(container);
+                    const messageId = getMessageId(container);
+                    
+                    if (window.__chatHistoryProcessedMessages.has(messageId)) {
+                        continue;
+                    }
+                    
+                    const trimmedMessage = messageText ? messageText.trim() : '';
+                    
+                    if (trimmedMessage === trimmedPending) {
+                        window.__chatHistoryProcessedMessages.add(messageId);
+                        console.log('Chat history: Found exact matching message, capturing:', trimmedPending);
+                        captureMessage(trimmedPending);
+                        pendingMessage = null;
+                        return;
+                    }
+                }
+                
+                setTimeout(function() {
+                    if (!pendingMessage) {
+                        return;
+                    }
+                    
+                    const trimmedPending = pendingMessage.trim();
+                    const messageContainers = document.querySelectorAll('.ChatPanel_messageContainer__vcNLb');
+                    const lastContainers = Array.from(messageContainers).slice(-5);
+                    
+                    let found = false;
+                    for (let container of lastContainers) {
+                        const messageText = extractMessageText(container);
+                        const trimmedMessage = messageText ? messageText.trim() : '';
+                        
+                        if (trimmedMessage === trimmedPending) {
+                            const messageId = getMessageId(container);
+                            if (!window.__chatHistoryProcessedMessages.has(messageId)) {
+                                window.__chatHistoryProcessedMessages.add(messageId);
+                                console.log('Chat history: Found exact matching message (delayed), capturing:', trimmedPending);
+                                captureMessage(trimmedPending);
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (!found && trimmedPending) {
+                        console.log('Chat history: Message not found in chat after delay, capturing anyway:', trimmedPending);
+                        captureMessage(trimmedPending);
+                    }
+                    pendingMessage = null;
+                }, 1200);
+            }
+            
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    mutation.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                            const isMessageContainer = node.classList && node.classList.contains('ChatPanel_messageContainer__vcNLb');
+                            const hasMessageContainer = node.querySelector && node.querySelector('.ChatPanel_messageContainer__vcNLb');
+                            const hasMessageText = node.querySelector && node.querySelector('.ChatPanel_text__gPmys');
+                            
+                            if (isMessageContainer || hasMessageContainer || hasMessageText) {
+                                if (pendingMessage) {
+                                    setTimeout(checkForSentMessage, 150);
+                                }
+                            }
+                        }
+                    });
+                });
+            });
+            
+            const messagesContainer = document.querySelector('.ChatPanel_messages__8u6bQ') ||
+                                     document.querySelector('.ChatPanel_messagesContainer__TK6HF') ||
+                                     document.body;
+            
+            if (messagesContainer) {
+                observer.observe(messagesContainer, {
+                    childList: true,
+                    subtree: true
+                });
+                
+                window.__chatHistoryObserver = observer;
+                console.log('Chat history: Observer attached to messages container');
+            } else {
+                console.error('Chat history: Messages container not found');
+            }
+            
+            const inputObserver = new MutationObserver(function() {
+                setupInputObserver();
+            });
+            
+            inputObserver.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            window.__chatHistoryInputObserver = inputObserver;
+            
+            setTimeout(setupInputObserver, 500);
+            setTimeout(setupInputObserver, 1500);
+            setTimeout(setupInputObserver, 3000);
+            setInterval(setupInputObserver, 5000);
+        })();
+        """
+    }
 }
 

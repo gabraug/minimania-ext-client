@@ -61,6 +61,10 @@ extension AppDelegate: WKNavigationDelegate {
         if autoFarmingManager.config.isAutoPlantEnabled {
             autoFarmingManager.injectAutoPlantObserver()
         }
+        
+        if chatHistoryManager.isEnabled {
+            chatHistoryManager.injectObserver()
+        }
     }
 }
 

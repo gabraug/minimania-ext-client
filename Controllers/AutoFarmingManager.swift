@@ -9,12 +9,16 @@ class AutoFarmingManager {
     weak var harvestButton: NSButton?
     weak var plantButton: NSButton?
     
+    var onHarvestStateChanged: ((Bool) -> Void)?
+    var onPlantStateChanged: ((Bool) -> Void)?
+    
     init(jsService: JavaScriptInjectionService, config: AutoFarmingConfig = AutoFarmingConfig()) {
         self.jsService = jsService
         self.config = config
     }
     
     func toggleAutoHarvest() {
+        let wasEnabled = config.isAutoHarvestEnabled
         config.isAutoHarvestEnabled.toggle()
         
         if config.isAutoHarvestEnabled {
@@ -24,15 +28,27 @@ class AutoFarmingManager {
         }
         
         updateHarvestButtonState()
+        
+        if config.isAutoHarvestEnabled != wasEnabled {
+            onHarvestStateChanged?(config.isAutoHarvestEnabled)
+        }
     }
     
     func toggleAutoPlant() {
+        let wasEnabled = config.isAutoPlantEnabled
         config.isAutoPlantEnabled.toggle()
         
         if config.isAutoPlantEnabled {
             if config.seedName.isEmpty {
                 config.isAutoPlantEnabled = false
                 updatePlantButtonState()
+                
+                let alert = NSAlert()
+                alert.messageText = "Seed Name Required"
+                alert.informativeText = "Please configure a seed name before enabling automatic planting."
+                alert.alertStyle = .warning
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
                 return
             }
             
@@ -42,6 +58,10 @@ class AutoFarmingManager {
         }
         
         updatePlantButtonState()
+        
+        if config.isAutoPlantEnabled != wasEnabled {
+            onPlantStateChanged?(config.isAutoPlantEnabled)
+        }
     }
     
     private func startAutoHarvest() {
@@ -146,10 +166,10 @@ class AutoFarmingManager {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if self.config.isAutoHarvestEnabled {
-                self.harvestButton?.title = "Auto Harvest [ON]"
+                self.harvestButton?.title = "ON"
                 self.harvestButton?.contentTintColor = .systemGreen
             } else {
-                self.harvestButton?.title = "Auto Harvest [OFF]"
+                self.harvestButton?.title = "OFF"
                 self.harvestButton?.contentTintColor = .systemGray
             }
         }
@@ -159,10 +179,10 @@ class AutoFarmingManager {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             if self.config.isAutoPlantEnabled {
-                self.plantButton?.title = "Auto Plant [ON]"
+                self.plantButton?.title = "ON"
                 self.plantButton?.contentTintColor = .systemGreen
             } else {
-                self.plantButton?.title = "Auto Plant [OFF]"
+                self.plantButton?.title = "OFF"
                 self.plantButton?.contentTintColor = .systemGray
             }
         }
