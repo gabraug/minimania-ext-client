@@ -120,6 +120,32 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
             self?.presentMissingAutoReplyAlert()
         }
         autoFarmingManager = AutoFarmingManager(jsService: jsInjectionService)
+        autoFarmingManager.onHarvestStateChanged = { [weak self] isEnabled in
+            let alert = NSAlert()
+            if isEnabled {
+                alert.messageText = "Auto Harvest Enabled"
+                alert.informativeText = "Automatic plant harvesting has been enabled successfully."
+            } else {
+                alert.messageText = "Auto Harvest Disabled"
+                alert.informativeText = "Automatic plant harvesting has been disabled."
+            }
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+        autoFarmingManager.onPlantStateChanged = { [weak self] isEnabled in
+            let alert = NSAlert()
+            if isEnabled {
+                alert.messageText = "Auto Plant Enabled"
+                alert.informativeText = "Automatic planting has been enabled successfully."
+            } else {
+                alert.messageText = "Auto Plant Disabled"
+                alert.informativeText = "Automatic planting has been disabled."
+            }
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
         mentionHighlighterManager = MentionHighlighterManager(jsService: jsInjectionService, config: userConfig)
     }
     
