@@ -1,5 +1,28 @@
 import Cocoa
 
+extension NSImage {
+    func tinted(with color: NSColor) -> NSImage {
+        let size = self.size
+        return NSImage(size: size, flipped: false) { rect in
+            guard let cgImage = self.cgImage(forProposedRect: nil, context: nil, hints: nil) else {
+                return false
+            }
+            
+            let context = NSGraphicsContext.current!.cgContext
+            context.saveGState()
+            
+            context.draw(cgImage, in: rect)
+            
+            context.setFillColor(color.cgColor)
+            context.setBlendMode(.sourceAtop)
+            context.fill(rect)
+            
+            context.restoreGState()
+            return true
+        }
+    }
+}
+
 class HeaderView: NSView {
     var refreshButton: NSButton!
     var zoomInButton: NSButton!
@@ -9,7 +32,7 @@ class HeaderView: NSView {
     var autoMessageButton: NSButton!
     var autoReplyButton: NSButton!
     var autoPlantacaoButton: NSButton!
-    var autoMessageIntervalField: NSTextField!
+    var chatHistoryButton: NSButton!
     var urlLabel: NSTextField!
     var playersCountLabel: NSTextField!
     
@@ -27,11 +50,17 @@ class HeaderView: NSView {
         stackView.edgeInsets = NSEdgeInsets(top: 5, left: 10, bottom: 5, right: 10)
         stackView.autoresizingMask = [.width, .height]
         
-        refreshButton = NSButton(title: "Refresh", target: target, action: #selector((target as? HeaderViewDelegate)?.refreshPage))
-        refreshButton.bezelStyle = .rounded
+        let refreshIcon = NSImage(systemSymbolName: "arrow.clockwise", accessibilityDescription: "Refresh")!
+        let whiteRefreshIcon = refreshIcon.tinted(with: .white)
+        whiteRefreshIcon.isTemplate = false
+        
+        refreshButton = NSButton(image: whiteRefreshIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.refreshPage))
+        refreshButton.bezelStyle = .texturedRounded
         refreshButton.controlSize = .small
         refreshButton.toolTip = "Reload the current page"
         refreshButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        refreshButton.imagePosition = .imageOnly
+        refreshButton.isBordered = false
         
         zoomOutButton = NSButton(title: "−", target: target, action: #selector((target as? HeaderViewDelegate)?.zoomOut))
         zoomOutButton.bezelStyle = .rounded
@@ -51,17 +80,33 @@ class HeaderView: NSView {
         zoomInButton.toolTip = "Zoom in"
         zoomInButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         
-        antiAfkButton = NSButton(title: "Anti-AFK", target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAntiAfk))
-        antiAfkButton.bezelStyle = .rounded
+        let antiAfkIcon = NSImage(systemSymbolName: "hand.raised", accessibilityDescription: "Anti-AFK")!
+        let whiteAntiAfkIcon = antiAfkIcon.tinted(with: .white)
+        whiteAntiAfkIcon.isTemplate = false
+        
+        antiAfkButton = NSButton(image: whiteAntiAfkIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAntiAfk))
+        antiAfkButton.bezelStyle = .texturedRounded
         antiAfkButton.controlSize = .small
         antiAfkButton.toolTip = "Enable/disable anti-away system"
         antiAfkButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        antiAfkButton.imagePosition = .imageOnly
+        antiAfkButton.isBordered = false
         
-        urlLabel = NSTextField(labelWithString: "https://minimania.app/")
+        urlLabel = NSTextField(string: "https://minimania.app/")
         urlLabel.font = NSFont.systemFont(ofSize: 11)
         urlLabel.textColor = .secondaryLabelColor
         urlLabel.alignment = .left
+        urlLabel.isEditable = false
+        urlLabel.isSelectable = true
+        urlLabel.isBordered = true
+        urlLabel.isBezeled = false
+        urlLabel.backgroundColor = .controlBackgroundColor
+        urlLabel.wantsLayer = true
+        urlLabel.layer?.borderWidth = 1.0
+        urlLabel.layer?.borderColor = NSColor.separatorColor.cgColor
+        urlLabel.layer?.cornerRadius = 4.0
         urlLabel.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        urlLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         
         playersCountLabel = NSTextField(labelWithString: "Players: --")
         playersCountLabel.font = NSFont.systemFont(ofSize: 11, weight: .medium)
@@ -69,62 +114,64 @@ class HeaderView: NSView {
         playersCountLabel.alignment = .right
         playersCountLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
         
-        let messageConfigButton = NSButton(title: "Message", target: target, action: #selector((target as? HeaderViewDelegate)?.openMessageModal))
-        messageConfigButton.bezelStyle = .rounded
-        messageConfigButton.controlSize = .small
-        messageConfigButton.toolTip = "Configure automatic message settings"
-        messageConfigButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        let autoMessageIcon = NSImage(systemSymbolName: "message", accessibilityDescription: "Auto Message")!
+        let whiteAutoMessageIcon = autoMessageIcon.tinted(with: .white)
+        whiteAutoMessageIcon.isTemplate = false
         
-        let intervalLabel = NSTextField(labelWithString: "Interval:")
-        intervalLabel.font = NSFont.systemFont(ofSize: 11)
-        intervalLabel.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        
-        autoMessageIntervalField = NSTextField()
-        autoMessageIntervalField.placeholderString = "5"
-        autoMessageIntervalField.stringValue = "5"
-        autoMessageIntervalField.font = NSFont.systemFont(ofSize: 11)
-        autoMessageIntervalField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        autoMessageIntervalField.target = target
-        autoMessageIntervalField.action = #selector((target as? HeaderViewDelegate)?.intervalFieldChanged)
-        
-        autoMessageButton = NSButton(title: "Auto Message [OFF]", target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAutoMessage))
-        autoMessageButton.bezelStyle = .rounded
+        autoMessageButton = NSButton(image: whiteAutoMessageIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.openMessageModal))
+        autoMessageButton.bezelStyle = .texturedRounded
         autoMessageButton.controlSize = .small
-        autoMessageButton.toolTip = "Enable/disable automatic message sending"
+        autoMessageButton.toolTip = "Configure automatic message settings"
         autoMessageButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-        autoMessageButton.contentTintColor = .systemGray
+        autoMessageButton.imagePosition = .imageOnly
+        autoMessageButton.isBordered = false
         
-        let autoReplyConfigButton = NSButton(title: "Auto-Reply", target: target, action: #selector((target as? HeaderViewDelegate)?.openAutoReplyModal))
-        autoReplyConfigButton.bezelStyle = .rounded
-        autoReplyConfigButton.controlSize = .small
-        autoReplyConfigButton.toolTip = "Configure automatic reply system"
-        autoReplyConfigButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        let autoReplyIcon = NSImage(systemSymbolName: "arrowshape.turn.up.left", accessibilityDescription: "Auto-Reply")!
+        let whiteAutoReplyIcon = autoReplyIcon.tinted(with: .white)
+        whiteAutoReplyIcon.isTemplate = false
         
-        autoReplyButton = NSButton(title: "Reply [OFF]", target: target, action: #selector((target as? HeaderViewDelegate)?.toggleAutoReply))
-        autoReplyButton.bezelStyle = .rounded
+        autoReplyButton = NSButton(image: whiteAutoReplyIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.openAutoReplyModal))
+        autoReplyButton.bezelStyle = .texturedRounded
         autoReplyButton.controlSize = .small
-        autoReplyButton.toolTip = "Enable/disable automatic reply"
+        autoReplyButton.toolTip = "Configure automatic reply system"
         autoReplyButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        autoReplyButton.imagePosition = .imageOnly
+        autoReplyButton.isBordered = false
         
-        autoPlantacaoButton = NSButton(title: "Auto Farming", target: target, action: #selector((target as? HeaderViewDelegate)?.openAutoPlantacaoModal))
-        autoPlantacaoButton.bezelStyle = .rounded
+        let autoFarmingIcon = NSImage(systemSymbolName: "leaf", accessibilityDescription: "Auto Farming")!
+        let whiteAutoFarmingIcon = autoFarmingIcon.tinted(with: .white)
+        whiteAutoFarmingIcon.isTemplate = false
+        
+        autoPlantacaoButton = NSButton(image: whiteAutoFarmingIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.openAutoPlantacaoModal))
+        autoPlantacaoButton.bezelStyle = .texturedRounded
         autoPlantacaoButton.controlSize = .small
-        autoPlantacaoButton.toolTip = "Open automatic farming automation window"
+        autoPlantacaoButton.toolTip = "Configure automatic farming"
         autoPlantacaoButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        autoPlantacaoButton.imagePosition = .imageOnly
+        autoPlantacaoButton.isBordered = false
         
+        let chatHistoryIcon = NSImage(systemSymbolName: "clock.arrow.circlepath", accessibilityDescription: "Chat History")!
+        let whiteChatHistoryIcon = chatHistoryIcon.tinted(with: .white)
+        whiteChatHistoryIcon.isTemplate = false
+        
+        chatHistoryButton = NSButton(image: whiteChatHistoryIcon, target: target, action: #selector((target as? HeaderViewDelegate)?.openChatHistoryModal))
+        chatHistoryButton.bezelStyle = .texturedRounded
+        chatHistoryButton.controlSize = .small
+        chatHistoryButton.toolTip = "View chat history"
+        chatHistoryButton.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        chatHistoryButton.imagePosition = .imageOnly
+        chatHistoryButton.isBordered = false
+        
+        stackView.addView(urlLabel, in: .leading)
         stackView.addView(refreshButton, in: .leading)
         stackView.addView(antiAfkButton, in: .leading)
+        stackView.addView(autoMessageButton, in: .leading)
         stackView.addView(zoomOutButton, in: .leading)
         stackView.addView(zoomResetButton, in: .leading)
         stackView.addView(zoomInButton, in: .leading)
-        stackView.addView(messageConfigButton, in: .leading)
-        stackView.addView(intervalLabel, in: .leading)
-        stackView.addView(autoMessageIntervalField, in: .leading)
-        stackView.addView(autoMessageButton, in: .leading)
-        stackView.addView(autoReplyConfigButton, in: .leading)
         stackView.addView(autoReplyButton, in: .leading)
         stackView.addView(autoPlantacaoButton, in: .leading)
-        stackView.addView(urlLabel, in: .center)
+        stackView.addView(chatHistoryButton, in: .leading)
         stackView.addView(playersCountLabel, in: .trailing)
         
         addSubview(stackView)
@@ -141,8 +188,7 @@ class HeaderView: NSView {
     @objc func openMessageModal()
     @objc func openAutoReplyModal()
     @objc func openAutoPlantacaoModal()
+    @objc func openChatHistoryModal()
     @objc func toggleAutoMessage()
-    @objc func toggleAutoReply()
-    @objc func intervalFieldChanged()
 }
 

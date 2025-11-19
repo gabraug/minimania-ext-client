@@ -1,11 +1,11 @@
 import Cocoa
 
 class AutoFarmingModal {
-    var window: NSWindow!
-    var seedNameField: NSTextField!
+    var modal: Modal!
+    var seedNameField: TextInput!
     var sourceSegmentedControl: NSSegmentedControl!
-    var autoHarvestButton: NSButton!
-    var autoPlantButton: NSButton!
+    var harvestToggle: Toggle!
+    var plantToggle: Toggle!
     weak var parentWindow: NSWindow?
     
     var onToggleHarvest: (() -> Void)?
@@ -17,107 +17,75 @@ class AutoFarmingModal {
     func create(parentWindow: NSWindow) {
         self.parentWindow = parentWindow
         
-        let modalRect = NSRect(x: 0, y: 0, width: 400, height: 340)
-        window = NSWindow(
-            contentRect: modalRect,
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
+        modal = Modal(title: "Automatic Farming Configuration", width: 580, height: 480, parent: parentWindow)
+        
+        harvestToggle = Toggle(
+            label: "Automatic Harvesting",
+            isOn: false,
+            toolTip: "Enable or disable automatic plant harvesting",
+            onChange: { [weak self] _ in
+                self?.onToggleHarvest?()
+            }
         )
-        
-        window.title = "Automatic Farming"
-        window.isReleasedWhenClosed = false
-        
-        let containerView = NSView(frame: window.contentView!.bounds)
-        containerView.autoresizingMask = [.width, .height]
-        
-        let stackView = NSStackView(frame: containerView.bounds)
-        stackView.orientation = .vertical
-        stackView.distribution = .fill
-        stackView.spacing = 15
-        stackView.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        stackView.autoresizingMask = [.width, .height]
-        
-        let titleLabel = NSTextField(labelWithString: "Automatic Farming")
-        titleLabel.font = NSFont.systemFont(ofSize: 16, weight: .bold)
-        titleLabel.alignment = .center
-        
-        autoHarvestButton = NSButton(title: "Auto Harvest [OFF]", target: self, action: #selector(toggleHarvest))
-        autoHarvestButton.bezelStyle = .rounded
-        autoHarvestButton.controlSize = .regular
-        autoHarvestButton.toolTip = "Enable/disable automatic plant harvesting"
-        
-        let separator = NSBox()
-        separator.boxType = .separator
-        separator.setContentHuggingPriority(.defaultLow, for: .vertical)
-        
-        let seedSourceLabel = NSTextField(labelWithString: "Seed Source:")
-        seedSourceLabel.font = NSFont.systemFont(ofSize: 13)
-        seedSourceLabel.alignment = .left
         
         sourceSegmentedControl = NSSegmentedControl(labels: ["Buy Plants", "My Stock"], trackingMode: .selectOne, target: self, action: #selector(sourceChanged))
         sourceSegmentedControl.selectedSegment = 0
-        sourceSegmentedControl.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+        sourceSegmentedControl.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        sourceSegmentedControl.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        sourceSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
+        sourceSegmentedControl.segmentDistribution = .fillEqually
         
-        let seedNameLabel = NSTextField(labelWithString: "Seed Name:")
-        seedNameLabel.font = NSFont.systemFont(ofSize: 13)
-        seedNameLabel.alignment = .left
+        let seedSourceField = FormField(
+            label: "Seed Source",
+            control: sourceSegmentedControl,
+            helperText: "Choose whether to buy plants or use seeds from your inventory"
+        )
         
-        seedNameField = NSTextField()
-        seedNameField.placeholderString = "Example: Alienina Seed"
-        seedNameField.font = NSFont.systemFont(ofSize: 13)
-        seedNameField.isBordered = true
-        seedNameField.target = self
-        seedNameField.action = #selector(seedNameChanged)
+        seedNameField = TextInput(placeholder: "Example: Alienina Seed", onChange: { [weak self] text in
+            let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            self?.onSeedNameChanged?(trimmedText)
+        })
         
-        autoPlantButton = NSButton(title: "Auto Plant [OFF]", target: self, action: #selector(togglePlant))
-        autoPlantButton.bezelStyle = .rounded
-        autoPlantButton.controlSize = .regular
-        autoPlantButton.toolTip = "Enable/disable automatic planting"
+        let seedNameFieldWrapper = FormField(
+            label: "Seed Name",
+            control: seedNameField,
+            helperText: "The exact name of the seed to plant automatically"
+        )
         
-        let closeButton = NSButton(title: "Close", target: self, action: #selector(close))
-        closeButton.bezelStyle = .rounded
-        closeButton.keyEquivalent = "\r"
+        plantToggle = Toggle(
+            label: "Automatic Planting",
+            isOn: false,
+            toolTip: "Enable or disable automatic seed planting",
+            onChange: { [weak self] _ in
+                self?.onTogglePlant?()
+            }
+        )
         
-        stackView.addView(titleLabel, in: .top)
-        stackView.addView(autoHarvestButton, in: .top)
-        stackView.addView(separator, in: .top)
-        stackView.addView(seedSourceLabel, in: .top)
-        stackView.addView(sourceSegmentedControl, in: .top)
-        stackView.addView(seedNameLabel, in: .top)
-        stackView.addView(seedNameField, in: .top)
-        stackView.addView(autoPlantButton, in: .top)
-        stackView.addView(closeButton, in: .top)
+        modal.addSection([seedSourceField, seedNameFieldWrapper], spacing: 20)
+        modal.addSeparator(topPadding: 20, bottomPadding: 20)
+        modal.addSection([plantToggle], spacing: 20)
+        modal.addSeparator(topPadding: 20, bottomPadding: 20)
+        modal.addSection([harvestToggle], spacing: 20)
+        modal.addSeparator(topPadding: 20, bottomPadding: 20)
         
-        containerView.addSubview(stackView)
-        window.contentView = containerView
+        let closeButton = Button(title: "Close", style: .primary) { [weak self] in
+            self?.close()
+        }
         
-        centerModal()
+        modal.addButtonRow([closeButton], spacing: 16, distribution: .fill)
     }
     
     func show(seedName: String, useBuyPlants: Bool) {
-        if window == nil {
+        if modal == nil {
             guard let parent = parentWindow else { return }
             create(parentWindow: parent)
         }
         
         seedNameField.stringValue = seedName
         sourceSegmentedControl.selectedSegment = useBuyPlants ? 0 : 1
-        parentWindow?.beginSheet(window) { _ in }
+        modal.show()
     }
     
-    @objc private func toggleHarvest() {
-        onToggleHarvest?()
-    }
-    
-    @objc private func togglePlant() {
-        onTogglePlant?()
-    }
-    
-    @objc private func seedNameChanged() {
-        let seedName = seedNameField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        onSeedNameChanged?(seedName)
-    }
     
     @objc private func sourceChanged() {
         let useBuyPlants = (sourceSegmentedControl.selectedSegment == 0)
@@ -126,15 +94,17 @@ class AutoFarmingModal {
     
     @objc private func close() {
         onClose?()
-        parentWindow?.endSheet(window)
+        modal.dismiss()
     }
     
-    private func centerModal() {
-        guard let windowFrame = parentWindow?.frame else { return }
-        let modalFrame = window.frame
-        let x = windowFrame.origin.x + (windowFrame.width - modalFrame.width) / 2
-        let y = windowFrame.origin.y + (windowFrame.height - modalFrame.height) / 2
-        window.setFrameOrigin(NSPoint(x: x, y: y))
+    var autoHarvestButton: NSButton! {
+        get { harvestToggle?.toggleButton }
+        set { }
+    }
+    
+    var autoPlantButton: NSButton! {
+        get { plantToggle?.toggleButton }
+        set { }
     }
 }
 

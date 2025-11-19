@@ -1,101 +1,96 @@
 import Cocoa
 
 class MessageModal {
-    var window: NSWindow!
-    var textField: NSTextField!
-    var saveButton: NSButton!
+    var modal: Modal!
+    var textField: TextInput!
+    var intervalField: TextInput!
+    var toggle: Toggle!
     weak var parentWindow: NSWindow?
-    var onSave: ((String) -> Void)?
+    var onSave: ((String, Double, Bool) -> Void)?
     
     func create(parentWindow: NSWindow) {
         self.parentWindow = parentWindow
         
-        let modalRect = NSRect(x: 0, y: 0, width: 500, height: 200)
-        window = NSWindow(
-            contentRect: modalRect,
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
+        modal = Modal(title: "Automatic Message Configuration", width: 560, height: 380, parent: parentWindow)
+        
+        textField = TextInput(placeholder: "Enter the message to send automatically...", style: .multiline)
+        let messageFieldWrapper = FormField(
+            label: "Message Content",
+            control: textField,
+            helperText: "This message will be sent periodically to the chat"
         )
         
-        window.title = "Configure Automatic Message"
-        window.isReleasedWhenClosed = false
+        intervalField = TextInput(placeholder: "5", style: .numeric)
+        let intervalRow = Row([
+            intervalField,
+            Text("seconds", style: .helper)
+        ], spacing: 8, alignment: .centerY)
         
-        let containerView = NSView(frame: window.contentView!.bounds)
-        containerView.autoresizingMask = [.width, .height]
+        let intervalFieldWrapper = FormField(
+            label: "Sending Interval",
+            control: intervalRow,
+            helperText: "Minimum interval is 5 seconds"
+        )
         
-        let stackView = NSStackView(frame: containerView.bounds)
-        stackView.orientation = .vertical
-        stackView.distribution = .fill
-        stackView.spacing = 15
-        stackView.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
-        stackView.autoresizingMask = [.width, .height]
+        toggle = Toggle(
+            label: "Enable Auto Message",
+            isOn: false,
+            toolTip: "Toggle automatic message sending on or off",
+            onChange: nil
+        )
         
-        let label = NSTextField(labelWithString: "Enter the message that will be sent automatically:")
-        label.font = NSFont.systemFont(ofSize: 13)
-        label.alignment = .left
+        modal.addSection([messageFieldWrapper], spacing: 20)
+        modal.addSeparator(topPadding: 20, bottomPadding: 20)
+        modal.addSection([intervalFieldWrapper, toggle], spacing: 20)
+        modal.addSeparator(topPadding: 20, bottomPadding: 20)
         
-        textField = NSTextField()
-        textField.placeholderString = "Type your message here..."
-        textField.font = NSFont.systemFont(ofSize: 13)
-        textField.isBordered = true
-        textField.maximumNumberOfLines = 0
-        textField.cell?.wraps = true
-        textField.cell?.isScrollable = true
-        textField.setContentHuggingPriority(.defaultLow, for: .vertical)
+        let cancelButton = Button(title: "Cancel", style: .secondary) { [weak self] in
+            self?.close()
+        }
         
-        let buttonStackView = NSStackView()
-        buttonStackView.orientation = .horizontal
-        buttonStackView.distribution = .fillEqually
-        buttonStackView.spacing = 10
+        let saveButton = Button(title: "Save", style: .primary) { [weak self] in
+            self?.save()
+        }
         
-        let cancelButton = NSButton(title: "Cancel", target: self, action: #selector(close))
-        cancelButton.bezelStyle = .rounded
-        cancelButton.keyEquivalent = "\u{1b}"
-        
-        saveButton = NSButton(title: "Save", target: self, action: #selector(save))
-        saveButton.bezelStyle = .rounded
-        saveButton.keyEquivalent = "\r"
-        
-        buttonStackView.addView(cancelButton, in: .leading)
-        buttonStackView.addView(saveButton, in: .leading)
-        
-        stackView.addView(label, in: .top)
-        stackView.addView(textField, in: .top)
-        stackView.addView(buttonStackView, in: .top)
-        
-        containerView.addSubview(stackView)
-        window.contentView = containerView
-        
-        centerModal()
+        modal.addButtonRow([cancelButton, saveButton], spacing: 16)
     }
     
-    func show(with text: String) {
-        if window == nil {
+    func show(with text: String, interval: Double, isEnabled: Bool) {
+        if modal == nil {
             guard let parent = parentWindow else { return }
             create(parentWindow: parent)
         }
         
         textField.stringValue = text
-        parentWindow?.beginSheet(window) { _ in }
+        intervalField.stringValue = String(format: "%.0f", interval)
+        toggle.isOn = isEnabled
+        modal.show()
     }
     
     @objc private func save() {
         let text = textField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        onSave?(text)
+        var interval = Double(intervalField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 5.0
+        
+        if interval < 5.0 {
+            interval = 5.0
+            intervalField.stringValue = "5"
+            
+            let alert = NSAlert()
+            alert.messageText = "Invalid Interval Value"
+            alert.informativeText = "The minimum sending interval is 5 seconds. The value has been automatically adjusted to the minimum."
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+        
+        let isEnabled = toggle.isOn
+        onSave?(text, interval, isEnabled)
         close()
     }
     
     @objc private func close() {
-        parentWindow?.endSheet(window)
-    }
-    
-    private func centerModal() {
-        guard let windowFrame = parentWindow?.frame else { return }
-        let modalFrame = window.frame
-        let x = windowFrame.origin.x + (windowFrame.width - modalFrame.width) / 2
-        let y = windowFrame.origin.y + (windowFrame.height - modalFrame.height) / 2
-        window.setFrameOrigin(NSPoint(x: x, y: y))
+        modal.dismiss()
     }
 }
 
