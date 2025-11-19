@@ -16,12 +16,14 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     var autoReplyManager: AutoReplyManager!
     var autoFarmingManager: AutoFarmingManager!
     var mentionHighlighterManager: MentionHighlighterManager!
+    var chatHistoryManager: ChatHistoryManager!
     
     var userConfig = UserConfig()
     
     var messageModal: MessageModal!
     var autoReplyModal: AutoReplyModal!
     var autoFarmingModal: AutoFarmingModal!
+    var chatHistoryModal: ChatHistoryModal!
     
     func applicationDidFinishLaunching(_ aNotification: Notification) {
         setupWindow()
@@ -62,6 +64,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
         
         let contentController = WKUserContentController()
         contentController.add(self, name: "urlChange")
+        contentController.add(self, name: "chatMessage")
         webConfiguration.userContentController = contentController
         
         let headerHeight: CGFloat = 40
@@ -88,6 +91,24 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     }
     
     private func setupManagers() {
+        chatHistoryManager = ChatHistoryManager(jsService: jsInjectionService)
+        chatHistoryManager.onMessageAdded = { [weak self] message in
+            if let modal = self?.chatHistoryModal, modal.modal?.isVisible == true {
+                let currentPage = modal.getCurrentPage()
+                let messages = self?.chatHistoryManager.getMessages(page: currentPage, pageSize: 10) ?? []
+                modal.updateMessages(messages: messages)
+                let totalPages = self?.chatHistoryManager.getTotalPages(pageSize: 10) ?? 0
+                let totalMessages = self?.chatHistoryManager.getTotalMessages() ?? 0
+                modal.show(
+                    isEnabled: self?.chatHistoryManager.isEnabled ?? false,
+                    messages: messages,
+                    currentPage: currentPage,
+                    totalPages: totalPages,
+                    totalMessages: totalMessages
+                )
+            }
+        }
+        
         antiAfkManager = AntiAfkManager(jsService: jsInjectionService)
         zoomManager = ZoomManager(jsService: jsInjectionService)
         autoMessageManager = AutoMessageManager(jsService: jsInjectionService)
@@ -140,6 +161,58 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
             if self.autoFarmingManager.config.isAutoPlantEnabled {
                 self.autoFarmingManager.injectAutoPlantObserver()
             }
+        }
+        
+        chatHistoryModal = ChatHistoryModal()
+        chatHistoryModal.parentWindow = window
+        chatHistoryModal.create(parentWindow: window)
+        chatHistoryModal.onToggle = { [weak self] isEnabled in
+            guard let self = self else { return }
+            self.chatHistoryManager.isEnabled = isEnabled
+            if isEnabled {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    self.chatHistoryManager.injectObserver()
+                }
+            }
+            let alert = NSAlert()
+            if isEnabled {
+                alert.messageText = "Chat History Enabled"
+                alert.informativeText = "Chat history recording has been enabled."
+            } else {
+                alert.messageText = "Chat History Disabled"
+                alert.informativeText = "Chat history recording has been disabled."
+            }
+            alert.alertStyle = .informational
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+        }
+        chatHistoryModal.onClearHistory = { [weak self] in
+            self?.chatHistoryManager.clearHistory()
+            let currentPage = 0
+            let messages = self?.chatHistoryManager.getMessages(page: currentPage, pageSize: 10) ?? []
+            let totalPages = self?.chatHistoryManager.getTotalPages(pageSize: 10) ?? 0
+            let totalMessages = self?.chatHistoryManager.getTotalMessages() ?? 0
+            self?.chatHistoryModal.show(
+                isEnabled: self?.chatHistoryManager.isEnabled ?? false,
+                messages: messages,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                totalMessages: totalMessages
+            )
+        }
+        chatHistoryModal.onPageChanged = { [weak self] in
+            guard let self = self else { return }
+            let currentPage = self.chatHistoryModal.getCurrentPage()
+            let messages = self.chatHistoryManager.getMessages(page: currentPage, pageSize: 10)
+            let totalPages = self.chatHistoryManager.getTotalPages(pageSize: 10)
+            let totalMessages = self.chatHistoryManager.getTotalMessages()
+            self.chatHistoryModal.show(
+                isEnabled: self.chatHistoryManager.isEnabled,
+                messages: messages,
+                currentPage: currentPage,
+                totalPages: totalPages,
+                totalMessages: totalMessages
+            )
         }
     }
     
