@@ -120,7 +120,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
             self?.presentMissingAutoReplyAlert()
         }
         autoFarmingManager = AutoFarmingManager(jsService: jsInjectionService)
-        autoFarmingManager.onHarvestStateChanged = { [weak self] isEnabled in
+        autoFarmingManager.onHarvestStateChanged = { isEnabled in
             let alert = NSAlert()
             if isEnabled {
                 alert.messageText = "Auto Harvest Enabled"
@@ -133,7 +133,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
             alert.addButton(withTitle: "OK")
             alert.runModal()
         }
-        autoFarmingManager.onPlantStateChanged = { [weak self] isEnabled in
+        autoFarmingManager.onPlantStateChanged = { isEnabled in
             let alert = NSAlert()
             if isEnabled {
                 alert.messageText = "Auto Plant Enabled"
@@ -365,7 +365,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     }
     
     @objc func openMessageModal() {
-        messageModal.show(with: autoMessageManager.config.text)
+        messageModal.show(with: autoMessageManager.config.text, interval: autoMessageManager.config.interval, isEnabled: autoMessageManager.config.isEnabled)
     }
     
     private func presentMissingAutoMessageAlert() {
@@ -383,7 +383,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
     }
     
     @objc func openAutoReplyModal() {
-        autoReplyModal.show(keyword: autoReplyManager.config.keyword, message: autoReplyManager.config.message)
+        autoReplyModal.show(keyword: autoReplyManager.config.keyword, message: autoReplyManager.config.message, isEnabled: autoReplyManager.config.isEnabled)
     }
     
     @objc func openAutoPlantacaoModal() {
@@ -398,17 +398,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, HeaderViewDelegate {
         autoReplyManager.toggle()
     }
     
-    @objc func intervalFieldChanged() {
-        if let interval = Double(headerView.autoMessageIntervalField.stringValue), interval >= 5.0 {
-            autoMessageManager.config.interval = interval
-        } else {
-            autoMessageManager.config.interval = 5.0
-            headerView.autoMessageIntervalField.stringValue = "5"
-        }
-        
-        if autoMessageManager.config.isEnabled {
-            autoMessageManager.startTimer()
-        }
+    @objc func openChatHistoryModal() {
+        let currentPage = 0
+        let messages = chatHistoryManager.getMessages(page: currentPage, pageSize: 10)
+        let totalPages = chatHistoryManager.getTotalPages(pageSize: 10)
+        let totalMessages = chatHistoryManager.getTotalMessages()
+        chatHistoryModal.show(
+            isEnabled: chatHistoryManager.isEnabled,
+            messages: messages,
+            currentPage: currentPage,
+            totalPages: totalPages,
+            totalMessages: totalMessages
+        )
     }
     
     private func updateAntiAfkButtonState() {
